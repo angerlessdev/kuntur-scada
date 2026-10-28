@@ -63,3 +63,15 @@ def test_unexpected_errors_never_leak_their_text(api: Api) -> None:
     assert response.status_code == 500
     assert "contraseña" not in response.text
     assert response.json()["title"] == "Error interno"
+
+
+def test_an_alert_comes_with_an_explanation(api: Api) -> None:
+    for i in range(4):
+        api.application.record(failed(i))
+    headers = api.headers("visitante")
+    [alert] = api.client.get("/api/v1/alerts", params={"state": "ACTIVE"}, headers=headers).json()
+    explanation = api.client.get(f"/api/v1/alerts/{alert['id']}/explanation", headers=headers).json()
+    assert explanation["source"] == "template"
+    assert explanation["summary"].startswith("Sin comunicación con UPS sala eléctrica")
+    assert explanation["checks"]
+    assert api.client.get("/api/v1/alerts/no-existe/explanation", headers=headers).status_code == 404

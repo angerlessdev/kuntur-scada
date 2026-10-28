@@ -50,6 +50,12 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:4200"]
     expose_docs: bool = True
 
-    ai_provider: Literal["template", "gemini"] = "template"
-    gemini_api_key: SecretStr | None = None
-    gemini_model: str = "gemini-2.5-flash"
+    ai_provider: Literal["template", "claude"] = "template"
+    """Who explains the alerts: the deterministic template, or Claude with the template as fallback."""
+    anthropic_api_key: SecretStr | None = Field(
+        None, validation_alias=AliasChoices("KUNTUR_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY")
+    )
+    """Unset: the SDK looks for its usual credentials (an ``ant auth login`` profile, for instance)."""
+    ai_model: str = "claude-opus-5-5"
+    ai_effort: Literal["low", "medium", "high"] = "low"
+    ai_timeout_s: float = Field(20.0, gt=0, le=120)

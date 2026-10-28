@@ -17,6 +17,8 @@ from kuntur.adapters.events import InMemoryEventBus
 from kuntur.adapters.fleet_file import load_fleet
 from kuntur.adapters.live import LiveHub
 from kuntur.adapters.metrics import Metrics
+from kuntur.adapters.narrators.claude import ClaudeNarrator
+from kuntur.adapters.narrators.template import TemplateNarrator
 from kuntur.adapters.persistence.memory import InMemoryStore, InMemoryUnitOfWork
 from kuntur.adapters.persistence.sql.database import create_sql_engine
 from kuntur.adapters.persistence.sql.unit_of_work import SqlUnitOfWork
@@ -25,9 +27,17 @@ from kuntur.adapters.system import SystemClock, UuidGenerator
 from kuntur.application.acquisition import PollDevice, RecordReading
 from kuntur.application.collector import Collector
 from kuntur.application.control import IssueCommand
+from kuntur.application.explain import ExplainAlert
 from kuntur.application.fleet import sync_fleet
 from kuntur.application.identity import Authenticate, LoginLimiter, ResolveActor, ensure_accounts
-from kuntur.application.ports import Clock, DriverRegistry, PasswordHasher, UnitOfWork, UnitOfWorkFactory
+from kuntur.application.ports import (
+    Clock,
+    DriverRegistry,
+    IncidentNarrator,
+    PasswordHasher,
+    UnitOfWork,
+    UnitOfWorkFactory,
+)
 from kuntur.application.queries import FleetQueries
 from kuntur.config import Settings
 from kuntur.domain.alerts import AlertState
@@ -58,6 +68,7 @@ class Application:
     authenticate: Authenticate
     resolve_actor: ResolveActor
     collector: Collector
+    explain: ExplainAlert
     hub: LiveHub
     metrics: Metrics
     fleet: Sequence[Device]
@@ -136,6 +147,20 @@ def _unit_of_work(settings: Settings, closers: list[Closer]) -> UnitOfWorkFactor
     return sql
 
 
+def _narrator(settings: Settings, closers: list[Closer]) -> IncidentNarrator:
+    template = TemplateNarrator()
+    if settings.ai_provider == "template":
+        return template
+    import anthropic  # noqa: PLC0415 - only needed when Claude explains the alerts
+
+    key = settings.anthropic_api_key.get_secret_value() if settings.anthropic_api_key else None
+    client = anthropic.AsyncAnthropic(
+        api_key=key, timeout=anthropic.Timeout(settings.ai_timeout_s, connect=5.0), max_retries=1
+    )
+    closers.append(client.close)
+    return ClaudeNarrator(client, model=settings.ai_model, effort=settings.ai_effort)
+
+
 def build_application(
     settings: Settings,
     *,
@@ -174,6 +199,13 @@ def build_application(
         authenticate=Authenticate(uow_factory, hasher, tokens, LoginLimiter(SystemClock())),
         resolve_actor=ResolveActor(uow_factory, tokens),
         collector=Collector(poll, uow_factory, settings.poll_interval_s, settings.max_concurrent_polls),
+        explain=ExplainAlert(
+            uow_factory,
+            _narrator(settings, closers),
+            TemplateNarrator(),
+            clock,
+            budget_s=2 * settings.ai_timeout_s + 5,
+        ),
         hub=hub,
         metrics=metrics,
         fleet=fleet,

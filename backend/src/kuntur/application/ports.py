@@ -6,7 +6,7 @@ interfaces, so every dependency points inwards and any adapter can be swapped or
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from types import TracebackType
@@ -16,7 +16,7 @@ from kuntur.domain.alerts import Alert, AlertCode, AlertState
 from kuntur.domain.commands import Command, CommandKind
 from kuntur.domain.devices import Device, DeviceKind
 from kuntur.domain.events import DomainEvent
-from kuntur.domain.readings import Reading
+from kuntur.domain.readings import FailureCause, Reading
 from kuntur.domain.security import Actor, User
 
 
@@ -156,3 +156,36 @@ class DeviceDriver(Protocol):
 
 class DriverRegistry(Protocol):
     def for_kind(self, kind: DeviceKind) -> DeviceDriver: ...
+
+
+@dataclass(frozen=True, slots=True)
+class IncidentContext:
+    """Everything known about an alert, gathered for whoever explains it to the operator."""
+
+    alert: Alert
+    device: Device
+    recent_readings: Sequence[Reading]
+    failure_causes: Mapping[FailureCause, int]
+    previous_alerts: int
+    """Alerts of the same code on this device in the last 30 days, this one excluded."""
+    recent_commands: Sequence[Command]
+    allowed_commands: Sequence[CommandKind]
+    now: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class Narration:
+    summary: str
+    likely_causes: Sequence[str]
+    checks: Sequence[str]
+    suggested_command: CommandKind | None
+    source: str
+    """Who wrote it: ``template`` or ``claude:<model that answered>``."""
+
+
+class NarratorUnavailable(Exception):  # noqa: N818 - a state of the narrator, not a bug
+    """The narrator could not explain this time (no credentials, timeout, refusal, malformed answer)."""
+
+
+class IncidentNarrator(Protocol):
+    async def explain(self, context: IncidentContext) -> Narration: ...

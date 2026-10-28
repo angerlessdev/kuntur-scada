@@ -8,6 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from kuntur.application.explain import Explanation
 from kuntur.application.queries import DeviceOverview
 from kuntur.domain.alerts import Alert, AlertCode, AlertState, Severity
 from kuntur.domain.commands import Command, CommandKind, CommandStatus
@@ -151,6 +152,31 @@ class CommandOut(BaseModel):
             status=command.status,
             finished_at=command.finished_at,
             detail=command.detail,
+        )
+
+
+class ExplanationOut(BaseModel):
+    alert_id: str
+    summary: str
+    likely_causes: list[str] = Field(description="De la más probable a la menos probable")
+    checks: list[str] = Field(description="Qué revisar, en orden")
+    suggested_command: CommandKind | None = Field(description="Siempre una orden que el equipo acepta")
+    source: str = Field(description="Quién la escribió: template o claude:<modelo>")
+    generated_at: datetime
+    fallback_reason: str | None = Field(description="Por qué se usó la plantilla en vez del modelo, si pasó")
+
+    @classmethod
+    def of(cls, explanation: Explanation) -> ExplanationOut:
+        narration = explanation.narration
+        return cls(
+            alert_id=explanation.alert_id,
+            summary=narration.summary,
+            likely_causes=list(narration.likely_causes),
+            checks=list(narration.checks),
+            suggested_command=narration.suggested_command,
+            source=narration.source,
+            generated_at=explanation.generated_at,
+            fallback_reason=explanation.fallback_reason,
         )
 
 

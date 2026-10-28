@@ -19,6 +19,7 @@ from kuntur.adapters.api.schemas import (
     CommandIn,
     CommandOut,
     DeviceOverviewOut,
+    ExplanationOut,
     LoginIn,
     MeOut,
     ReadingOut,
@@ -90,6 +91,15 @@ def alerts(
 @api.get("/alerts/{alert_id}", tags=["alertas"], summary="Una alerta")
 def alert(alert_id: str, actor: CurrentActor, application: App) -> AlertOut:
     return AlertOut.of(application.queries.alert(alert_id))
+
+
+@api.get(
+    "/alerts/{alert_id}/explanation",
+    tags=["alertas"],
+    summary="Qué pasa, por qué probablemente pasa y qué revisar primero (Claude o la plantilla)",
+)
+async def explanation(alert_id: str, actor: CurrentActor, application: App) -> ExplanationOut:
+    return ExplanationOut.of(await application.explain(alert_id))
 
 
 @api.post(
