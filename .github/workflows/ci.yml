@@ -133,7 +133,7 @@ jobs:
           npm install -g npm@11.6.2
           npm ci
           npx playwright install --with-deps chromium
-          npx playwright test --project=escritorio --project=tableta
+          npm test
 
       - name: Registros de la plataforma
         if: failure()

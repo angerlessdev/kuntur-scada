@@ -3,6 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 /**
  * End-to-end tests against the whole platform: browser, API, SQL Server and the simulator.
  * Start it with `docker compose up --build`, then run `npm test` with the same .env values exported.
+ * `npm run capturas` regenerates the screenshots in docs/img instead.
  */
 export default defineConfig({
   testDir: './tests',
