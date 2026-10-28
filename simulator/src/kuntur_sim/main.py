@@ -57,6 +57,9 @@ def run() -> None:
     parser.add_argument("--seed", type=int, default=2026)
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    # Every poll opens a connection: logging each one would bury the faults and scenarios worth reading
+    for noisy in ("websockets", "pymodbus"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
     with contextlib.suppress(KeyboardInterrupt):
         asyncio.run(serve(args))
 
