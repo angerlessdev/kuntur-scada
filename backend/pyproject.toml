@@ -27,6 +27,7 @@ ai = ["google-genai>=1.0"]
 
 [project.scripts]
 kuntur-api = "kuntur.main:run"
+kuntur-db = "kuntur.cli:db"
 
 [dependency-groups]
 dev = [
@@ -85,7 +86,11 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 addopts = "-ra --strict-markers"
-filterwarnings = ["error::pytest.PytestUnraisableExceptionWarning"]
+filterwarnings = [
+    "error::pytest.PytestUnraisableExceptionWarning",
+    # Starlette's own test client warns about its httpx dependency: not ours to fix
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]
 markers = [
     "integration: needs external services (SQL Server, the device simulator)",
 ]

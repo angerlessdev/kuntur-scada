@@ -7,6 +7,7 @@ from datetime import datetime
 
 from kuntur.domain.alerts import Alert
 from kuntur.domain.commands import Command
+from kuntur.domain.devices import DeviceKind
 from kuntur.domain.health import Health
 from kuntur.domain.readings import Reading
 
@@ -20,6 +21,9 @@ class DomainEvent:
 class ReadingRecorded(DomainEvent):
     reading: Reading
     health: Health
+    kind: DeviceKind
+    elapsed_s: float | None = None
+    """How long the driver took, when the reading came from a poll."""
 
 
 @dataclass(frozen=True, slots=True)

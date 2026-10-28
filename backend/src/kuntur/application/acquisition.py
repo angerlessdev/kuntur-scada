@@ -29,7 +29,7 @@ class RecordReading:
     ids: IdGenerator
     window: int = 10
 
-    def __call__(self, reading: Reading) -> Health:
+    def __call__(self, reading: Reading, *, elapsed_s: float | None = None) -> Health:
         events: list[DomainEvent] = []
         with self.uow_factory() as uow:
             device = uow.devices.get(reading.device_id)
@@ -65,7 +65,8 @@ class RecordReading:
                     events.append(AlertResolved.of(alert))
             health = assess_health(reading, active.values())
             uow.commit()
-        self.publisher.publish([ReadingRecorded(reading.taken_at, reading, health), *events])
+        recorded = ReadingRecorded(reading.taken_at, reading, health, device.kind, elapsed_s)
+        self.publisher.publish([recorded, *events])
         return health
 
 
@@ -82,6 +83,8 @@ class PollDevice:
     async def __call__(self, device: Device) -> Health:
         at = self.clock.now()
         driver = self.drivers.for_kind(device.kind)
+        loop = asyncio.get_running_loop()
+        started = loop.time()
         try:
             reading = await asyncio.wait_for(driver.read(device, at), self.timeout_s)
         except TimeoutError:
@@ -91,4 +94,4 @@ class PollDevice:
         except Exception as exc:  # the driver broke its contract: keep the evidence, do not stop polling
             logger.exception("Driver for %s crashed", device.id)
             reading = Reading.failed(device.id, at, FailureCause.UNKNOWN, type(exc).__name__)
-        return await asyncio.to_thread(self.record, reading)
+        return await asyncio.to_thread(self.record, reading, elapsed_s=loop.time() - started)
