@@ -24,7 +24,7 @@ from typing import Protocol
 from kuntur.domain.alerts import AlertCode, Severity
 from kuntur.domain.devices import DeviceKind
 from kuntur.domain.errors import DomainValidationError
-from kuntur.domain.readings import Reading, ReadingStatus
+from kuntur.domain.readings import CAUSE_LABELS, FailureCause, Reading, ReadingStatus
 
 
 class Transition(StrEnum):
@@ -117,9 +117,9 @@ class ConfirmedFailureRule:
         if len(failed) < self.failures:
             return Verdict.hold()
         causes = Counter(r.cause for r in failed if r.cause is not None)
-        cause = causes.most_common(1)[0][0] if causes else "desconocida"
+        cause = causes.most_common(1)[0][0] if causes else FailureCause.UNKNOWN
         message = f"Sin comunicación: {len(failed)} de las últimas {len(recent)} lecturas fallaron"
-        return Verdict(Transition.RAISE, f"{message} (causa: {cause})")
+        return Verdict(Transition.RAISE, f"{message} ({CAUSE_LABELS[cause]})")
 
 
 class Direction(StrEnum):

@@ -53,7 +53,7 @@ class TestConfirmedFailure:
         verdict = ConfirmedFailureRule().evaluate(RuleContext(readings, None, None, at(3)))
         assert verdict.transition is Transition.RAISE
         assert "4 de las últimas 4" in verdict.message
-        assert "TIMEOUT" in verdict.message
+        assert verdict.message.endswith("(no respondió a tiempo)")
 
     def test_clears_only_after_two_answered_readings_in_a_row(self) -> None:
         readings = stream([False, False, False, False, True, False, True, True])

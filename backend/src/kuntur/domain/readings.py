@@ -46,6 +46,22 @@ class FailureCause(StrEnum):
     """Anything the driver could not classify."""
 
 
+CAUSE_LABELS: Mapping[FailureCause, str] = MappingProxyType(
+    {
+        FailureCause.TIMEOUT: "no respondió a tiempo",
+        FailureCause.CONNECTION_REFUSED: "conexión rechazada",
+        FailureCause.UNREACHABLE: "sin ruta de red",
+        FailureCause.CONNECTION_LOST: "conexión cortada",
+        FailureCause.AUTH_FAILED: "credenciales rechazadas",
+        FailureCause.PROTOCOL_ERROR: "respuesta fuera de protocolo",
+        FailureCause.INVALID_DATA: "valores imposibles",
+        FailureCause.DEVICE_FAULT: "falla del equipo",
+        FailureCause.UNKNOWN: "falla sin clasificar",
+    }
+)
+"""How each cause reads in an operator-facing message."""
+
+
 @dataclass(frozen=True, slots=True)
 class Reading:
     """Immutable result of polling a device once. ``taken_at`` must be timezone-aware."""
