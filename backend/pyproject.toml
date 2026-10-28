@@ -73,6 +73,7 @@ known-first-party = ["kuntur", "tests"]
 python_version = "3.12"
 strict = true
 files = ["src", "tests"]
+exclude = ["/migrations/"]
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]

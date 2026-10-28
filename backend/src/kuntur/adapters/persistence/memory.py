@@ -112,7 +112,7 @@ class _Alerts:
     def active(self, device_id: str | None = None) -> list[Alert]:
         return [
             replace(a)
-            for a in sorted(self._data.values(), key=lambda a: a.raised_at)
+            for a in sorted(self._data.values(), key=lambda a: (a.raised_at, a.id))
             if a.is_active and (device_id is None or a.device_id == device_id)
         ]
 
@@ -128,7 +128,7 @@ class _Alerts:
     def search(self, *, state: AlertState | None, device_id: str | None, limit: int) -> list[Alert]:
         found = [
             a
-            for a in sorted(self._data.values(), key=lambda a: a.raised_at, reverse=True)
+            for a in sorted(self._data.values(), key=lambda a: (a.raised_at, a.id), reverse=True)
             if (state is None or a.state is state) and (device_id is None or a.device_id == device_id)
         ]
         return [replace(a) for a in found[:limit]]
@@ -149,7 +149,7 @@ class _Commands:
     def search(self, *, device_id: str | None, limit: int) -> list[Command]:
         found = [
             c
-            for c in sorted(self._data.values(), key=lambda c: c.requested_at, reverse=True)
+            for c in sorted(self._data.values(), key=lambda c: (c.requested_at, c.id), reverse=True)
             if device_id is None or c.device_id == device_id
         ]
         return [replace(c) for c in found[:limit]]
