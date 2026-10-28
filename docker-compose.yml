@@ -1,0 +1,72 @@
+# Kuntur SCADA, the whole platform on one machine: docker compose up --build
+# Copy .env.example to .env first; every secret comes from there and none is baked into an image.
+
+name: kuntur
+
+x-database-url: &database-url "mssql+pymssql://sa:${KUNTUR_DB_SA_PASSWORD}@sqlserver:1433/kuntur"
+x-api-build: &api-build
+  context: .
+  dockerfile: backend/Dockerfile
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${KUNTUR_DB_SA_PASSWORD:?Set KUNTUR_DB_SA_PASSWORD in .env}
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' -b -o /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 20s
+
+  migrate:
+    build: *api-build
+    image: kuntur-api:local
+    command: ["kuntur-db", "upgrade"]
+    environment:
+      KUNTUR_DATABASE_URL: *database-url
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: "no"
+
+  simulator:
+    build:
+      context: .
+      dockerfile: simulator/Dockerfile
+    image: kuntur-sim:local
+    environment:
+      KUNTUR_SIM_CAMERA_USER: ${KUNTUR_SIM_CAMERA_USER:-admin}
+      KUNTUR_SIM_CAMERA_PASSWORD: ${KUNTUR_SIM_CAMERA_PASSWORD:?Set KUNTUR_SIM_CAMERA_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:15000:15000"  # control API: inject faults and scenarios from the host
+
+  api:
+    build: *api-build
+    image: kuntur-api:local
+    environment:
+      KUNTUR_DATABASE_URL: *database-url
+      KUNTUR_TOKEN_SECRET: ${KUNTUR_TOKEN_SECRET:?Set KUNTUR_TOKEN_SECRET in .env}
+      KUNTUR_OPERATOR_PASSWORD: ${KUNTUR_OPERATOR_PASSWORD:?Set KUNTUR_OPERATOR_PASSWORD in .env}
+      KUNTUR_VIEWER_PASSWORD: ${KUNTUR_VIEWER_PASSWORD:-}
+      KUNTUR_CAMERA_USER: ${KUNTUR_SIM_CAMERA_USER:-admin}
+      KUNTUR_CAMERA_PASSWORD: ${KUNTUR_SIM_CAMERA_PASSWORD}
+      KUNTUR_SIM_HOST: simulator
+      KUNTUR_CORS_ORIGINS: '["http://localhost:8080"]'
+      KUNTUR_AI_PROVIDER: ${KUNTUR_AI_PROVIDER:-template}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    ports:
+      - "127.0.0.1:${KUNTUR_API_PORT:-8000}:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      simulator:
+        condition: service_healthy
+
+volumes:
+  sqlserver-data:

@@ -1,0 +1,23 @@
+# Only what the images need: sources, manifests and the lockfile
+**/.venv
+**/__pycache__
+**/*.py[cod]
+**/.mypy_cache
+**/.ruff_cache
+**/.pytest_cache
+**/.hypothesis
+**/node_modules
+**/.angular
+**/dist
+**/coverage
+.git
+.github
+docs
+e2e
+mutants
+**/*.log
+
+# Secrets never enter an image
+.env
+.env.*
+!.env.example
