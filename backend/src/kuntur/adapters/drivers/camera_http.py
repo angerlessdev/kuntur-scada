@@ -88,7 +88,13 @@ def decode(device_id: str, at: datetime, response: httpx.Response) -> Reading:
 
 
 class HttpCameraDriver:
-    """Keeps one HTTP client (and its Digest nonce) for every camera. Close it with ``aclose``."""
+    """Keeps one HTTP client (and its Digest nonce) for every camera. Close it with ``aclose``.
+
+    No keep-alive: one connection per request, like the other drivers. Reusing idle connections raced
+    with the camera closing them (a web server drops idle connections after a few seconds, about the
+    polling interval), and about one reading in eleven failed with a dropped connection. The nonce is
+    still reused, so this costs no extra round trip.
+    """
 
     def __init__(self, username: str, password: str, *, timeout_s: float = 3.0) -> None:
         self._client = httpx.AsyncClient(
@@ -96,6 +102,7 @@ class HttpCameraDriver:
             timeout=timeout_s,
             trust_env=False,
             follow_redirects=False,
+            limits=httpx.Limits(max_keepalive_connections=0),
         )
 
     async def aclose(self) -> None:
