@@ -74,6 +74,11 @@ def _check_window(confirm: int, window: int) -> None:
         raise DomainValidationError(f"Confirmation must be between 1 and the window ({confirm} of {window})")
 
 
+def _sentence(text: str) -> str:
+    """Upper-cases the first letter only: ``str.capitalize`` would turn "UPS" into "Ups"."""
+    return text[:1].upper() + text[1:]
+
+
 @dataclass(frozen=True, slots=True)
 class ConfirmedFailureRule:
     """Raise when at least ``failures`` of the last ``window`` readings failed; clear after
@@ -132,6 +137,8 @@ class ThresholdRule:
     confirm: int = 2
     window: int = 3
     clear_after: int = 2
+    summary: str = ""
+    """Fixed wording for 0/1 state flags, where "above 1" would mean nothing to an operator."""
 
     def __post_init__(self) -> None:
         _check_window(self.confirm, self.window)
@@ -166,10 +173,14 @@ class ThresholdRule:
         crossings = sum(1 for v in recent if self._crossed(v))
         if crossings < self.confirm:
             return Verdict.hold()
+        if self.summary:
+            return Verdict(
+                Transition.RAISE, f"{self.summary} (en {crossings} de las últimas {len(recent)} lecturas)"
+            )
         side = "sobre" if self.direction is Direction.ABOVE else "bajo"
         return Verdict(
             Transition.RAISE,
-            f"{self.label.capitalize()} {side} {self.raise_at:g}{self.unit} en {crossings} de las últimas "
+            f"{_sentence(self.label)} {side} {self.raise_at:g}{self.unit} en {crossings} de las últimas "
             f"{len(recent)} lecturas (última: {recent[-1]:g}{self.unit})",
         )
 
@@ -208,7 +219,7 @@ class CounterIncreaseRule:
         growth = values[-1] - values[-2]
         if growth <= 0:
             return Verdict.hold()
-        message = f"{self.label.capitalize()}: {growth:g} nuevo(s) desde la lectura anterior"
+        message = f"{_sentence(self.label)}: {growth:g} nuevo(s) desde la lectura anterior"
         return Verdict(Transition.RAISE, message)
 
 
@@ -317,6 +328,7 @@ def default_rules(
                 confirm=2,
                 window=3,
                 clear_after=2,
+                summary="UPS operando con batería: no llega energía de la red",
             )
         ),
         guarded(

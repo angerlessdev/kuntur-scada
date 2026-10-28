@@ -91,6 +91,21 @@ class TestThreshold:
             == "Temperatura de batería sobre 40 °C en 3 de las últimas 3 lecturas (última: 44 °C)"
         )
 
+    def test_a_state_flag_reads_as_a_sentence(self) -> None:
+        on_battery = next(rule for rule in default_rules() if rule.code is AlertCode.UPS_ON_BATTERY)
+        verdict = on_battery.evaluate(RuleContext(metric_stream("on_battery", [1, 1]), None, None, at(1)))
+        assert verdict.message == (
+            "UPS operando con batería: no llega energía de la red (en 2 de las últimas 2 lecturas)"
+        )
+
+    def test_the_label_keeps_its_acronyms(self) -> None:
+        rule = ThresholdRule(
+            AlertCode.UPS_BATTERY_HOT, Severity.WARNING, frozenset({DeviceKind.UPS}), "t", Direction.ABOVE,
+            raise_at=40, clear_at=37, label="UPS caliente", confirm=1, window=1,
+        )  # fmt: skip
+        verdict = rule.evaluate(RuleContext(metric_stream("t", [41]), None, None, at(0)))
+        assert verdict.message.startswith("UPS caliente sobre 40")
+
     @pytest.mark.parametrize(
         ("direction", "raise_at", "clear_at"), [(Direction.ABOVE, 40, 41), (Direction.BELOW, 20, 10)]
     )
