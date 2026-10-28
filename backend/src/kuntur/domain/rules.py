@@ -41,10 +41,16 @@ class RuleContext:
     active_since: datetime | None
     last_resolved_at: datetime | None
     now: datetime
+    expected_down_until: datetime | None = None
+    """An operator's command took the device down on purpose (a reboot) until this time."""
 
     @property
     def is_active(self) -> bool:
         return self.active_since is not None
+
+    @property
+    def expected_down(self) -> bool:
+        return self.expected_down_until is not None and self.now < self.expected_down_until
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,6 +110,8 @@ class ConfirmedFailureRule:
             recovered = len(latest) == self.recoveries and all(r.answered for r in latest)
             return Verdict(Transition.CLEAR) if recovered else Verdict.hold()
 
+        if ctx.expected_down:  # a commanded reboot is not a loss of contact, until it takes too long
+            return Verdict.hold()
         recent = ctx.window[-self.window :]
         failed = [r for r in recent if r.status is ReadingStatus.FAILED]
         if len(failed) < self.failures:
@@ -289,12 +297,16 @@ class AlertEngine:
         active_since: Mapping[AlertCode, datetime],
         last_resolved_at: Mapping[AlertCode, datetime],
         now: datetime,
+        *,
+        expected_down_until: datetime | None = None,
     ) -> list[Decision]:
         decisions: list[Decision] = []
         for rule in self.rules:
             if not rule.applies_to(kind):
                 continue
-            ctx = RuleContext(window, active_since.get(rule.code), last_resolved_at.get(rule.code), now)
+            ctx = RuleContext(
+                window, active_since.get(rule.code), last_resolved_at.get(rule.code), now, expected_down_until
+            )
             verdict = rule.evaluate(ctx)
             wanted = (verdict.transition is Transition.RAISE and not ctx.is_active) or (
                 verdict.transition is Transition.CLEAR and ctx.is_active

@@ -9,7 +9,7 @@ from kuntur.application.fleet import sync_fleet
 from kuntur.domain.alerts import Alert, AlertCode, AlertState, Severity
 from kuntur.domain.health import Health
 from kuntur.domain.readings import FailureCause, Reading
-from tests.factories import at, barrier, ups
+from tests.factories import at, barrier, camera, ups
 
 COLORES = {"verde": Health.OK, "amarillo": Health.DEGRADED, "rojo": Health.DOWN, "gris": Health.UNKNOWN}
 SEVERIDADES = {"crítica": Severity.CRITICAL, "de advertencia": Severity.WARNING}
@@ -18,6 +18,12 @@ SEVERIDADES = {"crítica": Severity.CRITICAL, "de advertencia": Severity.WARNING
 @given('un UPS "{device_id}" en la flota')
 def un_ups(context: Context, device_id: str) -> None:
     sync_fleet(context.app.uow, [ups(device_id)])
+    context.device_id = device_id
+
+
+@given('una cámara "{device_id}" en la flota')
+def una_camara(context: Context, device_id: str) -> None:
+    sync_fleet(context.app.uow, [camera(device_id)])
     context.device_id = device_id
 
 

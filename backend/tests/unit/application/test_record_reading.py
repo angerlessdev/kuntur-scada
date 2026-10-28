@@ -116,3 +116,23 @@ def test_a_failed_transaction_stores_nothing_and_announces_nothing() -> None:
     with app.uow() as uow:
         assert uow.readings.latest("ups-01") is None
     assert app.bus.events == []
+
+
+async def test_a_commanded_reboot_gets_time_before_it_counts_as_lost_contact() -> None:
+    from datetime import timedelta
+
+    from kuntur.domain.commands import CommandKind
+    from kuntur.domain.security import Actor, Role
+    from tests.factories import camera
+
+    app = build_app(camera())
+    await app.issue(Actor("operador", Role.OPERATOR), "camara-01", CommandKind.CAMERA_REBOOT)
+    for i in range(10):  # 50 s of silence while it boots
+        app.record(failed(i, "camara-01", FailureCause.DEVICE_FAULT))
+    assert app.queries.alerts(state=AlertState.ACTIVE, device_id="camara-01", limit=10) == []
+    assert app.queries.device("camara-01").health is Health.DEGRADED
+    for i in range(10, 20):  # it should be back by now: silence is an alarm again
+        app.record(failed(i, "camara-01", FailureCause.TIMEOUT))
+    [alert] = app.queries.alerts(state=AlertState.ACTIVE, device_id="camara-01", limit=10)
+    assert alert.code is AlertCode.DEVICE_UNREACHABLE
+    assert alert.raised_at >= app.clock.now() + timedelta(seconds=90)

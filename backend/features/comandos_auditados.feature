@@ -30,3 +30,13 @@ Característica: Órdenes a los equipos, siempre auditadas
     Cuando envía la orden "CAMERA_REBOOT" a "barrera-via-03"
     Entonces la orden es rechazada por no corresponder al equipo
     Y la auditoría no registra ninguna orden
+
+  Escenario: Un reinicio ordenado no dispara la alarma de comunicación
+    Dada una cámara "camara-via-03" en la flota
+    Y que la sesión es de un operador "operador.turno1"
+    Cuando envía la orden "CAMERA_REBOOT" a "camara-via-03"
+    Y el equipo no responde en 12 lecturas seguidas
+    Entonces no hay alertas activas
+    Y el equipo se ve en amarillo
+    Cuando el equipo no responde en 8 lecturas seguidas
+    Entonces hay una alerta crítica "DEVICE_UNREACHABLE" activa

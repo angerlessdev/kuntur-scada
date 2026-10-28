@@ -190,3 +190,19 @@ class TestAlertEngine:
         codes = [rule.code for rule in default_rules()]
         assert sorted(codes) == sorted(AlertCode)
         AlertEngine(default_rules())
+
+
+class TestExpectedDowntime:
+    def test_a_commanded_reboot_is_not_a_loss_of_contact_until_it_takes_too_long(self) -> None:
+        rule = ConfirmedFailureRule()
+        readings = stream([False] * 5)
+        down_until = at(20)
+        during = RuleContext(readings, None, None, at(4), expected_down_until=down_until)
+        after = RuleContext(readings, None, None, at(20), expected_down_until=down_until)
+        assert rule.evaluate(during).transition is Transition.HOLD
+        assert rule.evaluate(after).transition is Transition.RAISE
+
+    def test_the_other_rules_ignore_it(self) -> None:
+        readings = metric_stream("battery_temp_c", [41, 42, 43])
+        ctx = RuleContext(readings, None, None, at(2), expected_down_until=at(100))
+        assert HOT.evaluate(ctx).transition is Transition.RAISE

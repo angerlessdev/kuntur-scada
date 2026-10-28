@@ -38,12 +38,14 @@ class RecordReading:
             uow.readings.add(reading)
             window = uow.readings.recent(device.id, self.window)
             active: dict[AlertCode, Alert] = {alert.code: alert for alert in uow.alerts.active(device.id)}
+            last_command = next(iter(uow.commands.search(device_id=device.id, limit=1)), None)
             decisions = self.engine.evaluate(
                 device.kind,
                 window,
                 {code: alert.raised_at for code, alert in active.items()},
                 uow.alerts.last_resolved_at(device.id),
                 reading.taken_at,
+                expected_down_until=last_command.expected_down_until() if last_command else None,
             )
             for decision in decisions:
                 if decision.transition is Transition.RAISE:

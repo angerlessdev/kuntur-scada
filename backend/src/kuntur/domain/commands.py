@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import StrEnum
 from types import MappingProxyType
 
@@ -27,6 +27,13 @@ ALLOWED_COMMANDS: Mapping[DeviceKind, frozenset[CommandKind]] = MappingProxyType
         DeviceKind.CAMERA: frozenset({CommandKind.CAMERA_REBOOT}),
     }
 )
+
+
+EXPECTED_DOWNTIME: Mapping[CommandKind, timedelta] = MappingProxyType(
+    {CommandKind.CAMERA_REBOOT: timedelta(seconds=90)}
+)
+"""How long a successful command takes the device off the network. A camera needs about a minute to
+boot; until then its silence is expected, not an alarm."""
 
 
 class CommandStatus(StrEnum):
@@ -56,6 +63,13 @@ class Command:
 
     def succeed(self, at: datetime, detail: str | None = None) -> None:
         self._finish(CommandStatus.SUCCEEDED, at, detail)
+
+    def expected_down_until(self) -> datetime | None:
+        """Until when the device is down on purpose because of this command, if it is."""
+        downtime = EXPECTED_DOWNTIME.get(self.kind)
+        if downtime is None or self.status is not CommandStatus.SUCCEEDED or self.finished_at is None:
+            return None
+        return self.finished_at + downtime
 
     def fail(self, at: datetime, detail: str) -> None:
         self._finish(CommandStatus.FAILED, at, detail)

@@ -3,7 +3,13 @@ from datetime import UTC, date, datetime, timedelta
 import pytest
 
 from kuntur.domain.alerts import Alert, AlertCode, AlertState, Severity
-from kuntur.domain.commands import Command, CommandKind, CommandStatus, ensure_command_allowed
+from kuntur.domain.commands import (
+    EXPECTED_DOWNTIME,
+    Command,
+    CommandKind,
+    CommandStatus,
+    ensure_command_allowed,
+)
 from kuntur.domain.devices import DeviceKind, Endpoint, LifetimeProfile
 from kuntur.domain.errors import (
     CommandNotAllowedError,
@@ -170,3 +176,20 @@ class TestSecurity:
 
 def test_aware_datetimes_in_factories() -> None:
     assert T0.tzinfo is UTC
+
+
+class TestExpectedDowntimeAfterACommand:
+    def test_only_a_successful_reboot_takes_the_device_down_on_purpose(self) -> None:
+        reboot = Command("c1", "camara-01", CommandKind.CAMERA_REBOOT, "operador", T0)
+        assert reboot.expected_down_until() is None  # still pending
+        reboot.succeed(T0 + timedelta(seconds=1), "Reinicio en curso")
+        assert (
+            reboot.expected_down_until()
+            == T0 + timedelta(seconds=1) + EXPECTED_DOWNTIME[CommandKind.CAMERA_REBOOT]
+        )
+        failed = Command("c2", "camara-01", CommandKind.CAMERA_REBOOT, "operador", T0)
+        failed.fail(T0, "La cámara ya se está reiniciando")
+        opened = Command("c3", "barrera-01", CommandKind.BARRIER_OPEN, "operador", T0)
+        opened.succeed(T0)
+        assert failed.expected_down_until() is None
+        assert opened.expected_down_until() is None
