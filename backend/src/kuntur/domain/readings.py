@@ -32,6 +32,8 @@ class FailureCause(StrEnum):
     """The host is up but nothing listens on the port."""
     UNREACHABLE = "UNREACHABLE"
     """No route to the host: network down, wrong address or name resolution failure."""
+    CONNECTION_LOST = "CONNECTION_LOST"
+    """The connection opened but dropped before the answer: a flapping link, a device rebooting."""
     AUTH_FAILED = "AUTH_FAILED"
     """The device rejected the credentials."""
     PROTOCOL_ERROR = "PROTOCOL_ERROR"
