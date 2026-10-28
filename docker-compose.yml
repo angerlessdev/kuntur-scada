@@ -68,5 +68,16 @@ services:
       simulator:
         condition: service_healthy
 
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    image: kuntur-web:local
+    ports:
+      - "127.0.0.1:${KUNTUR_WEB_PORT:-8080}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   sqlserver-data:
