@@ -128,7 +128,7 @@ def main() -> None:
     text = report(results, name)
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
-        args.out.write_text(text + "\n", encoding="utf-8")
+        args.out.write_text(text + "\n", encoding="utf-8", newline="\n")
     passed = sum(r.passed for r in results)
     print(f"{passed}/{len(results)} casos aprobados" + (f" -> {args.out}" if args.out else ""))
     if passed != len(results):
