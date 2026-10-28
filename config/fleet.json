@@ -1,0 +1,74 @@
+{
+  "devices": [
+    {
+      "id": "ups-norte-01",
+      "name": "UPS sala eléctrica Norte",
+      "kind": "UPS",
+      "site": "Estación Norte",
+      "endpoint": { "host": "${KUNTUR_SIM_HOST:-127.0.0.1}", "port": 15020 },
+      "installed_on": "2023-03-10",
+      "lifetime": { "design_life_years": 10, "battery_design_life_years": 5 },
+      "sim": { "ambient_c": 24, "base_load_pct": 38 }
+    },
+    {
+      "id": "ups-sur-01",
+      "name": "UPS sala eléctrica Sur",
+      "kind": "UPS",
+      "site": "Estación Sur",
+      "endpoint": { "host": "${KUNTUR_SIM_HOST:-127.0.0.1}", "port": 15021 },
+      "installed_on": "2021-08-02",
+      "lifetime": { "design_life_years": 10, "battery_design_life_years": 5 },
+      "sim": { "ambient_c": 31, "base_load_pct": 62 }
+    },
+    {
+      "id": "barrera-norte-01",
+      "name": "Barrera acceso Norte",
+      "kind": "BARRIER",
+      "site": "Estación Norte",
+      "endpoint": { "host": "${KUNTUR_SIM_HOST:-127.0.0.1}", "port": 15030 },
+      "installed_on": "2022-05-20",
+      "lifetime": { "design_life_years": 12, "rated_cycles": 5000000, "rated_impacts": 2000 },
+      "sim": { "traffic_per_min": 6, "cycles_total": 1650000, "impacts_total": 41 }
+    },
+    {
+      "id": "barrera-norte-02",
+      "name": "Barrera salida Norte",
+      "kind": "BARRIER",
+      "site": "Estación Norte",
+      "endpoint": { "host": "${KUNTUR_SIM_HOST:-127.0.0.1}", "port": 15031 },
+      "installed_on": "2019-11-04",
+      "lifetime": { "design_life_years": 12, "rated_cycles": 5000000, "rated_impacts": 2000 },
+      "sim": { "traffic_per_min": 9, "cycles_total": 3920000, "impacts_total": 388 }
+    },
+    {
+      "id": "barrera-sur-01",
+      "name": "Barrera acceso Sur",
+      "kind": "BARRIER",
+      "site": "Estación Sur",
+      "endpoint": { "host": "${KUNTUR_SIM_HOST:-127.0.0.1}", "port": 15032 },
+      "installed_on": "2024-02-12",
+      "lifetime": { "design_life_years": 12, "rated_cycles": 5000000, "rated_impacts": 2000 },
+      "sim": { "traffic_per_min": 3, "cycles_total": 420000, "impacts_total": 6 }
+    },
+    {
+      "id": "camara-norte-01",
+      "name": "Cámara acceso Norte",
+      "kind": "CAMERA",
+      "site": "Estación Norte",
+      "endpoint": { "host": "${KUNTUR_SIM_HOST:-127.0.0.1}", "port": 15040, "path": "/cameras/camara-norte-01" },
+      "installed_on": "2023-09-15",
+      "lifetime": { "design_life_years": 7 },
+      "sim": { "clock_offset_s": 2 }
+    },
+    {
+      "id": "camara-sur-01",
+      "name": "Cámara acceso Sur",
+      "kind": "CAMERA",
+      "site": "Estación Sur",
+      "endpoint": { "host": "${KUNTUR_SIM_HOST:-127.0.0.1}", "port": 15041, "path": "/cameras/camara-sur-01" },
+      "installed_on": "2020-06-30",
+      "lifetime": { "design_life_years": 7 },
+      "sim": { "clock_offset_s": 45 }
+    }
+  ]
+}
