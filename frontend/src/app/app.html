@@ -1,0 +1,64 @@
+@if (session.session(); as user) {
+  <a class="skip" href="#contenido">Saltar al contenido</a>
+  <div class="shell">
+    <nav class="rail" aria-label="Secciones">
+      <a class="brand" routerLink="/flota" aria-label="Kuntur SCADA, ir a la flota"
+        ><kt-wordmark
+      /></a>
+      <a routerLink="/flota" routerLinkActive="current" ariaCurrentWhenActive="page">Flota</a>
+      <a routerLink="/alertas" routerLinkActive="current" ariaCurrentWhenActive="page">
+        Alertas
+        @if (fleet.active().length) {
+          <span class="count data" [attr.aria-label]="fleet.active().length + ' activas'">{{
+            fleet.active().length
+          }}</span>
+        }
+      </a>
+      <a routerLink="/auditoria" routerLinkActive="current" ariaCurrentWhenActive="page"
+        >Auditoría</a
+      >
+      <div class="who">
+        <span class="user">{{ user.username }}</span>
+        <span class="muted role">{{
+          user.role === 'OPERATOR' ? 'Operador' : 'Visitante, solo lectura'
+        }}</span>
+        <button class="button" type="button" (click)="signOut()">Salir</button>
+      </div>
+    </nav>
+
+    <header class="banner" [class.alarmed]="fleet.active().length > 0" [class.pulse]="pulse()">
+      <div class="alarms" role="status" aria-live="polite">
+        @if (fleet.active().length === 0) {
+          <p>Sin alarmas activas.</p>
+        } @else {
+          <p class="counts">
+            @if (fleet.counts().critical) {
+              <span
+                ><kt-mark level="critical" /> {{ fleet.counts().critical }}
+                {{ fleet.counts().critical === 1 ? 'crítica' : 'críticas' }}</span
+              >
+            }
+            @if (fleet.counts().warning) {
+              <span
+                ><kt-mark level="warning" /> {{ fleet.counts().warning }}
+                {{ fleet.counts().warning === 1 ? 'advertencia' : 'advertencias' }}</span
+              >
+            }
+          </p>
+          @if (latest(); as text) {
+            <p class="latest">
+              La más reciente: <a routerLink="/alertas">{{ text }}</a>
+            </p>
+          }
+        }
+      </div>
+      <p class="link" [attr.data-state]="live.state()">{{ liveText() }}</p>
+    </header>
+
+    <main id="contenido" class="content" tabindex="-1">
+      <router-outlet />
+    </main>
+  </div>
+} @else {
+  <router-outlet />
+}

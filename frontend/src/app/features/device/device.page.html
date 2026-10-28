@@ -1,0 +1,223 @@
+@if (error(); as message) {
+  <p class="problem" role="alert">{{ message }} <a routerLink="/flota">Volver a la flota</a></p>
+}
+@if (current(); as view) {
+  <header class="head" [attr.data-level]="level()">
+    <a class="back" routerLink="/flota">Flota</a>
+    <h1>{{ view.device.name }}</h1>
+    <p class="identity muted">
+      {{ words.KIND[view.device.kind] }} en {{ view.device.site }}, instalado el
+      {{ format.longDate(view.device.installed_on) }}
+    </p>
+    <p class="state">
+      <kt-mark [level]="level()" />
+      <strong>{{ words.HEALTH[view.health] }}</strong>
+      @if (view.last_reading; as reading) {
+        <span class="muted data"
+          >última lectura {{ format.ago(reading.taken_at, ticker.now()) }}</span
+        >
+      }
+    </p>
+  </header>
+
+  <div class="layout">
+    <section class="panel trend" aria-labelledby="trend-title">
+      <div class="section-head">
+        <h2 id="trend-title">Tendencia</h2>
+        @if (metricNames().length > 1) {
+          <label>
+            <span class="visually-hidden">Variable</span>
+            <select (change)="metric.set($any($event.target).value)">
+              @for (name of metricNames(); track name) {
+                <option [value]="name" [selected]="name === chosenMetric()">
+                  {{ words.METRIC[name].label }}
+                </option>
+              }
+            </select>
+          </label>
+        }
+      </div>
+      @if (chosenMetric(); as name) {
+        <kt-trend
+          [points]="points()"
+          [limits]="limits()"
+          [unit]="words.METRIC[name].unit"
+          [label]="'Tendencia de ' + words.METRIC[name].label"
+        />
+        @if (limits().length) {
+          <p class="legend muted">
+            La línea de color marca dónde salta la alerta; la gris, dónde se apaga. La distancia
+            entre ambas evita que un valor que ronda el límite encienda y apague la alarma a cada
+            rato.
+          </p>
+        }
+      } @else {
+        <p class="muted">Todavía no hay lecturas de este equipo.</p>
+      }
+    </section>
+
+    <section class="panel life" aria-labelledby="life-title">
+      <h2 id="life-title">Vida útil</h2>
+      <p class="replacement" [class.overdue]="view.life.overdue">
+        @if (view.life.overdue) {
+          Reemplazo vencido.
+        } @else if (view.life.replacement_date) {
+          Reemplazo previsto: {{ format.longDate(view.life.replacement_date) }}.
+        } @else {
+          Sin fecha de reemplazo previsible.
+        }
+      </p>
+      <ul class="clocks">
+        @for (clock of view.life.clocks; track clock.name) {
+          <li [class.governing]="clock.name === view.life.governing">
+            <span class="clock-name">
+              {{ words.CLOCK[clock.name] }}
+              @if (clock.name === view.life.governing) {
+                <span class="muted">(marca la fecha)</span>
+              }
+            </span>
+            <span
+              class="usage"
+              role="meter"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              [attr.aria-valuenow]="clock.consumed_pct"
+              [attr.aria-label]="words.CLOCK[clock.name]"
+            >
+              <span [style.width.%]="clock.consumed_pct > 100 ? 100 : clock.consumed_pct"></span>
+            </span>
+            <span class="data">{{ clock.consumed_pct | number: '1.0-0' }} % usado</span>
+          </li>
+        }
+      </ul>
+      <p class="muted method">
+        Cada forma de desgaste es un reloj; el que se agota primero marca la fecha.
+      </p>
+    </section>
+
+    <section class="panel alerts" aria-labelledby="alerts-title">
+      <h2 id="alerts-title">Alertas</h2>
+      @if (active().length === 0) {
+        <p class="muted">Sin alertas activas.</p>
+      }
+      <ul class="alert-list">
+        @for (alert of active(); track alert.id) {
+          <li>
+            <div class="alert-row">
+              <kt-mark [level]="severityLevel(alert.severity)" />
+              <span class="alert-name">{{ words.ALERT[alert.code] }}</span>
+              <span class="muted data"
+                >hace {{ format.duration(alert.raised_at, null, ticker.now()) }}</span
+              >
+              <button
+                class="button"
+                type="button"
+                (click)="toggleExplanation(alert)"
+                [attr.aria-expanded]="explained() === alert.id"
+              >
+                {{ explained() === alert.id ? 'Ocultar la explicación' : 'Explicar la alerta' }}
+              </button>
+            </div>
+            @if (explained() === alert.id) {
+              <kt-explanation [alert]="alert" [deviceName]="view.device.name" />
+            }
+          </li>
+        }
+      </ul>
+      @if (resolved().length) {
+        <h3>Resueltas hace poco</h3>
+        <ul class="resolved">
+          @for (alert of resolved(); track alert.id) {
+            <li class="muted">
+              {{ words.ALERT[alert.code] }}, {{ format.shortDateTime(alert.raised_at) }}, duró
+              {{ format.duration(alert.raised_at, alert.resolved_at) }}
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <section class="panel commands" aria-labelledby="commands-title">
+      <h2 id="commands-title">Órdenes</h2>
+      @if (session.isOperator()) {
+        <div class="command-buttons">
+          @for (kind of allowed(); track kind) {
+            <kt-command
+              [deviceId]="view.device.id"
+              [deviceName]="view.device.name"
+              [kind]="kind"
+              (sent)="refreshCommands()"
+            />
+          }
+        </div>
+      } @else {
+        <p class="muted">
+          Tu cuenta solo puede mirar. Las órdenes requieren una cuenta de operador.
+        </p>
+      }
+      @if (commands().length) {
+        <ul class="command-log">
+          @for (command of commands(); track command.id) {
+            <li>
+              <span class="data">{{ format.shortDateTime(command.requested_at) }}</span>
+              {{ words.COMMAND[command.kind] }} por {{ command.requested_by }}:
+              <strong [class.failed]="command.status === 'FAILED'">
+                {{
+                  command.status === 'SUCCEEDED'
+                    ? 'cumplida'
+                    : command.status === 'FAILED'
+                      ? 'falló'
+                      : 'en curso'
+                }}
+              </strong>
+              @if (command.detail) {
+                <span class="muted">({{ command.detail }})</span>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <section class="panel readings" aria-labelledby="readings-title">
+      <h2 id="readings-title">Últimas lecturas</h2>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Hora</th>
+            <th scope="col">Resultado</th>
+            <th scope="col">Detalle</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (reading of recent(); track reading.taken_at) {
+            <tr [attr.data-status]="reading.status">
+              <td class="data">{{ format.clockTime(reading.taken_at) }}</td>
+              <td>
+                {{
+                  reading.status === 'OK'
+                    ? 'Completa'
+                    : reading.status === 'PARTIAL'
+                      ? 'Parcial'
+                      : 'Falló'
+                }}
+              </td>
+              <td>
+                @if (reading.cause) {
+                  {{ words.CAUSE[reading.cause] ?? reading.cause }}
+                  @if (reading.detail) {
+                    : {{ reading.detail }}
+                  }
+                } @else {
+                  <span class="muted">Todos los valores en orden</span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  </div>
+} @else if (!error()) {
+  <p class="muted">Leyendo el equipo…</p>
+}
