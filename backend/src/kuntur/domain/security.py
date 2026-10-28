@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, field
 from enum import StrEnum
 
-from kuntur.domain.errors import PermissionDeniedError
+from kuntur.domain.errors import DomainValidationError, PermissionDeniedError
+
+_USERNAME = re.compile(r"^[a-z][a-z0-9._-]{2,39}$")
 
 
 class Role(StrEnum):
@@ -19,6 +22,27 @@ class Role(StrEnum):
 class Actor:
     username: str
     role: Role
+
+
+@dataclass(slots=True)
+class User:
+    """An account. Only the password's hash is kept, and it never shows in a repr or a log."""
+
+    username: str
+    password_hash: str = field(repr=False)
+    role: Role
+    active: bool = True
+
+    def __post_init__(self) -> None:
+        if not _USERNAME.fullmatch(self.username):
+            raise DomainValidationError(
+                f"Invalid username {self.username!r}: use 3-40 lowercase letters, digits, '.', '-' or '_'"
+            )
+        if not self.password_hash:
+            raise DomainValidationError("A user needs a password hash")
+
+    def actor(self) -> Actor:
+        return Actor(self.username, self.role)
 
 
 def ensure_can_command(actor: Actor) -> None:

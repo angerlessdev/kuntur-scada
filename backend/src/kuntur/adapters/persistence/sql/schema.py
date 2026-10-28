@@ -166,3 +166,13 @@ commands = Table(
 )
 Index("ix_commands_requested_at", commands.c.requested_at, commands.c.id, mssql_clustered=True)
 Index("ix_commands_device_id_requested_at", commands.c.device_id, commands.c.requested_at)
+
+users = Table(
+    "users",
+    metadata,
+    Column("username", String(40), primary_key=True),
+    Column("password_hash", String(255), nullable=False),
+    Column("role", String(16), nullable=False),
+    Column("active", Boolean, nullable=False),
+    CheckConstraint("role IN ('VIEWER', 'OPERATOR')", name="role"),
+)

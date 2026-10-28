@@ -13,6 +13,7 @@ from kuntur.domain.alerts import Alert, AlertCode, AlertState, Severity
 from kuntur.domain.commands import Command, CommandKind
 from kuntur.domain.devices import Device
 from kuntur.domain.readings import FailureCause, Reading
+from kuntur.domain.security import Role, User
 from tests.factories import T0, at, barrier, camera, ups
 
 
@@ -172,6 +173,29 @@ class TestCommands:
             assert uow.commands.search(device_id="barrera-01", limit=10) == [opened]
             with pytest.raises(KeyError):
                 uow.commands.update(replace(tested, id="no-existe"))
+
+
+class TestUsers:
+    def test_add_get_and_update(self, uow_factory: UnitOfWorkFactory) -> None:
+        with uow_factory() as uow:
+            uow.users.add(User("operador", "$argon2id$hash", Role.OPERATOR))
+            uow.commit()
+            assert uow.users.get("operador") == User("operador", "$argon2id$hash", Role.OPERATOR)
+            assert uow.users.get("nadie") is None
+            uow.users.update(User("operador", "$argon2id$otro", Role.VIEWER, active=False))
+            uow.commit()
+        with uow_factory() as uow:
+            assert uow.users.get("operador") == User("operador", "$argon2id$otro", Role.VIEWER, active=False)
+
+    def test_an_account_is_added_once_and_updated_only_if_it_exists(
+        self, uow_factory: UnitOfWorkFactory
+    ) -> None:
+        with uow_factory() as uow:
+            uow.users.add(User("operador", "h", Role.OPERATOR))
+            with pytest.raises(ValueError, match="already exists"):
+                uow.users.add(User("operador", "h", Role.OPERATOR))
+            with pytest.raises(KeyError):
+                uow.users.update(User("nadie", "h", Role.VIEWER))
 
 
 class TestTransactions:

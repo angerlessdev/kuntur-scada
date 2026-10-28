@@ -12,7 +12,7 @@ from sqlalchemy import Engine, delete
 from sqlalchemy.engine import make_url
 
 from kuntur.adapters.persistence.sql.database import create_sql_engine, ensure_database, upgrade
-from kuntur.adapters.persistence.sql.schema import alerts, commands, devices, readings
+from kuntur.adapters.persistence.sql.schema import alerts, commands, devices, readings, users
 
 IMAGE = "mcr.microsoft.com/mssql/server:2022-latest"
 DATABASE = "kuntur_test"
@@ -47,6 +47,6 @@ def sql_engine() -> Iterator[Engine]:
 @pytest.fixture
 def clean_sql(sql_engine: Engine) -> Engine:
     with sql_engine.begin() as connection:
-        for table in (readings, alerts, commands, devices):
+        for table in (readings, alerts, commands, devices, users):
             connection.execute(delete(table))
     return sql_engine

@@ -7,6 +7,7 @@ interfaces, so every dependency points inwards and any adapter can be swapped or
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from types import TracebackType
 from typing import Protocol, Self
@@ -16,6 +17,7 @@ from kuntur.domain.commands import Command, CommandKind
 from kuntur.domain.devices import Device, DeviceKind
 from kuntur.domain.events import DomainEvent
 from kuntur.domain.readings import Reading
+from kuntur.domain.security import Actor, User
 
 
 class DeviceRepository(Protocol):
@@ -70,6 +72,14 @@ class CommandRepository(Protocol):
         ...
 
 
+class UserRepository(Protocol):
+    def get(self, username: str) -> User | None: ...
+
+    def add(self, user: User) -> None: ...
+
+    def update(self, user: User) -> None: ...
+
+
 class UnitOfWork(Protocol):
     """One business transaction. Leaving the block without ``commit()`` rolls everything back."""
 
@@ -77,6 +87,7 @@ class UnitOfWork(Protocol):
     readings: ReadingRepository
     alerts: AlertRepository
     commands: CommandRepository
+    users: UserRepository
 
     def __enter__(self) -> Self: ...
 
@@ -107,6 +118,27 @@ class Clock(Protocol):
 
 class IdGenerator(Protocol):
     def new_id(self) -> str: ...
+
+
+class PasswordHasher(Protocol):
+    def hash(self, password: str) -> str: ...
+
+    def verify(self, password: str, password_hash: str) -> bool: ...
+
+
+@dataclass(frozen=True, slots=True)
+class IssuedToken:
+    token: str
+    expires_at: datetime
+    actor: Actor
+
+
+class TokenService(Protocol):
+    def issue(self, actor: Actor) -> IssuedToken: ...
+
+    def subject(self, token: str) -> str:
+        """The username the token was issued to. Raises ``AuthenticationError`` if it is not valid."""
+        ...
 
 
 class CommandExecutionError(Exception):

@@ -12,8 +12,15 @@ from kuntur.adapters.persistence.sql.repositories import (
     SqlCommandRepository,
     SqlDeviceRepository,
     SqlReadingRepository,
+    SqlUserRepository,
 )
-from kuntur.application.ports import AlertRepository, CommandRepository, DeviceRepository, ReadingRepository
+from kuntur.application.ports import (
+    AlertRepository,
+    CommandRepository,
+    DeviceRepository,
+    ReadingRepository,
+    UserRepository,
+)
 
 
 class SqlUnitOfWork:
@@ -21,6 +28,7 @@ class SqlUnitOfWork:
     readings: ReadingRepository
     alerts: AlertRepository
     commands: CommandRepository
+    users: UserRepository
 
     def __init__(self, engine: Engine) -> None:
         self._engine = engine
@@ -34,6 +42,7 @@ class SqlUnitOfWork:
         self.readings = SqlReadingRepository(self._connection)
         self.alerts = SqlAlertRepository(self._connection)
         self.commands = SqlCommandRepository(self._connection)
+        self.users = SqlUserRepository(self._connection)
         return self
 
     def __exit__(

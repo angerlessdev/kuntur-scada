@@ -15,11 +15,18 @@ from datetime import datetime
 from types import TracebackType
 from typing import Self
 
-from kuntur.application.ports import AlertRepository, CommandRepository, DeviceRepository, ReadingRepository
+from kuntur.application.ports import (
+    AlertRepository,
+    CommandRepository,
+    DeviceRepository,
+    ReadingRepository,
+    UserRepository,
+)
 from kuntur.domain.alerts import Alert, AlertCode, AlertState
 from kuntur.domain.commands import Command
 from kuntur.domain.devices import Device
 from kuntur.domain.readings import Reading
+from kuntur.domain.security import User
 
 
 class InMemoryStore:
@@ -32,6 +39,7 @@ class InMemoryStore:
         self.readings: defaultdict[str, list[Reading]] = defaultdict(list)
         self.alerts: dict[str, Alert] = {}
         self.commands: dict[str, Command] = {}
+        self.users: dict[str, User] = {}
 
 
 class _Devices:
@@ -155,11 +163,31 @@ class _Commands:
         return [replace(c) for c in found[:limit]]
 
 
+class _Users:
+    def __init__(self, data: dict[str, User]) -> None:
+        self._data = data
+
+    def get(self, username: str) -> User | None:
+        user = self._data.get(username)
+        return replace(user) if user is not None else None
+
+    def add(self, user: User) -> None:
+        if user.username in self._data:
+            raise ValueError(f"User {user.username} already exists")
+        self._data[user.username] = replace(user)
+
+    def update(self, user: User) -> None:
+        if user.username not in self._data:
+            raise KeyError(user.username)
+        self._data[user.username] = replace(user)
+
+
 class InMemoryUnitOfWork:
     devices: DeviceRepository
     readings: ReadingRepository
     alerts: AlertRepository
     commands: CommandRepository
+    users: UserRepository
 
     def __init__(self, store: InMemoryStore) -> None:
         self._store = store
@@ -183,15 +211,18 @@ class InMemoryUnitOfWork:
         self._devices = {k: replace(v) for k, v in store.devices.items()}
         self._alerts = {k: replace(v) for k, v in store.alerts.items()}
         self._commands = {k: replace(v) for k, v in store.commands.items()}
+        self._users = {k: replace(v) for k, v in store.users.items()}
         self._readings = _Readings(store.readings)
         self.devices = _Devices(self._devices)
         self.readings = self._readings
         self.alerts = _Alerts(self._alerts)
         self.commands = _Commands(self._commands)
+        self.users = _Users(self._users)
 
     def commit(self) -> None:
         store = self._store
         store.devices, store.alerts, store.commands = self._devices, self._alerts, self._commands
+        store.users = self._users
         for device_id, new in self._readings.pending.items():
             stored = store.readings[device_id]
             stored.extend(new)

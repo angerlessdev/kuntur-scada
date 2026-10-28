@@ -8,11 +8,12 @@ from typing import Any
 from sqlalchemy import Connection, RowMapping, Select, and_, func, insert, select, true, update
 from sqlalchemy.exc import IntegrityError
 
-from kuntur.adapters.persistence.sql.schema import TEXT_LIMIT, alerts, commands, devices, readings
+from kuntur.adapters.persistence.sql.schema import TEXT_LIMIT, alerts, commands, devices, readings, users
 from kuntur.domain.alerts import Alert, AlertCode, AlertState, Severity
 from kuntur.domain.commands import Command, CommandKind, CommandStatus
 from kuntur.domain.devices import Device, DeviceKind, Endpoint, LifetimeProfile
 from kuntur.domain.readings import FailureCause, Reading, ReadingStatus
+from kuntur.domain.security import Role, User
 
 Row = RowMapping
 
@@ -271,3 +272,30 @@ class SqlCommandRepository:
         if device_id is not None:
             query = query.where(commands.c.device_id == device_id)
         return [_command(row) for row in self._connection.execute(query).mappings()]
+
+
+class SqlUserRepository:
+    def __init__(self, connection: Connection) -> None:
+        self._connection = connection
+
+    def get(self, username: str) -> User | None:
+        row = self._connection.execute(select(users).where(users.c.username == username)).mappings().first()
+        if row is None:
+            return None
+        return User(row["username"], row["password_hash"], Role(row["role"]), bool(row["active"]))
+
+    def add(self, user: User) -> None:
+        values = {"username": user.username, "password_hash": user.password_hash, "role": user.role.value}
+        try:
+            with self._connection.begin_nested():
+                self._connection.execute(insert(users).values({**values, "active": user.active}))
+        except IntegrityError as exc:
+            raise ValueError(f"User {user.username} already exists") from exc
+
+    def update(self, user: User) -> None:
+        values = {"password_hash": user.password_hash, "role": user.role.value, "active": user.active}
+        result = self._connection.execute(
+            update(users).where(users.c.username == user.username).values(values)
+        )
+        if result.rowcount == 0:
+            raise KeyError(user.username)

@@ -23,3 +23,16 @@ class CommandNotAllowedError(DomainError):
 
 class PermissionDeniedError(DomainError):
     """The actor's role does not allow the action."""
+
+
+class AuthenticationError(DomainError):
+    """Wrong credentials, or a token that is missing, expired or belongs to nobody active. The message
+    never says which: that would help someone guessing accounts."""
+
+
+class TooManyAttemptsError(DomainError):
+    """Too many failed logins for this account from this origin; ``retry_after_s`` says when to retry."""
+
+    def __init__(self, retry_after_s: int) -> None:
+        super().__init__(f"Too many failed attempts: retry in {retry_after_s} s")
+        self.retry_after_s = retry_after_s
